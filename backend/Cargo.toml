@@ -1,5 +1,5 @@
 [package]
-name = "todo-app-server"
+name = "todo-app-backend"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,6 +9,9 @@ edition = "2021"
 [dependencies]
 actix-web = "4"
 anyhow = "1"
+actix-cors = "0.6"
+log = "0.4"
+env_logger = "0.9"
 
 [dependencies.tokio]
 version = "1"
@@ -20,3 +23,7 @@ features = [
     "runtime-tokio-native-tls",
     "sqlite"
 ]
+
+[dependencies.serde]
+version = "1"
+features = ["derive"]
