@@ -26,7 +26,7 @@ struct TaskPath {
     id: Id,
 }
 
-#[get("/task/{id}")]
+#[get("/tasks/{id}")]
 async fn get_task(
     state: web::Data<State>,
     path: web::Path<TaskPath>,
@@ -46,7 +46,7 @@ async fn get_task(
     }
 }
 
-#[get("/task")]
+#[get("/tasks")]
 async fn get_tasks(state: web::Data<State>) -> actix_web::Result<web::Json<Vec<Task>>> {
     match sqlx::query_as::<_, Task>("SELECT * FROM tasks")
         .fetch_all(&state.db)
@@ -84,7 +84,7 @@ struct DeleteTask {
     id: Id,
 }
 
-#[delete("/task")]
+#[delete("/tasks")]
 async fn delete_task(state: web::Data<State>, json: web::Json<DeleteTask>) -> impl Responder {
     if let Err(e) = sqlx::query("DELETE FROM tasks WHERE id = ?")
         .bind(json.id)
@@ -104,7 +104,7 @@ struct PutTask {
     done: Option<bool>,
 }
 
-#[put("/task/{id}")]
+#[put("/tasks/{id}")]
 async fn put_task(
     state: web::Data<State>,
     path: web::Path<TaskPath>,
