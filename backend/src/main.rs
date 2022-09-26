@@ -1,6 +1,6 @@
 use actix_cors::Cors;
 use actix_web::middleware::Logger;
-use actix_web::{delete, get, http, post, put, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{delete, get, http, patch, post, web, App, HttpResponse, HttpServer, Responder};
 use env_logger::Env;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -65,8 +65,8 @@ struct AddTask {
     title: String,
 }
 
-#[post("/task")]
-async fn post_task(state: web::Data<State>, json: web::Json<AddTask>) -> impl Responder {
+#[post("/tasks")]
+async fn post_tasks(state: web::Data<State>, json: web::Json<AddTask>) -> impl Responder {
     if let Err(e) = sqlx::query("INSERT INTO tasks (title) VALUES (?)")
         .bind(json.title.clone())
         .execute(&state.db)
@@ -79,15 +79,11 @@ async fn post_task(state: web::Data<State>, json: web::Json<AddTask>) -> impl Re
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct DeleteTask {
-    id: Id,
-}
-
-#[delete("/tasks")]
-async fn delete_task(state: web::Data<State>, json: web::Json<DeleteTask>) -> impl Responder {
+#[delete("/tasks/{id}")]
+async fn delete_task(state: web::Data<State>, path: web::Path<TaskPath>) -> impl Responder {
+    let path = path.into_inner();
     if let Err(e) = sqlx::query("DELETE FROM tasks WHERE id = ?")
-        .bind(json.id)
+        .bind(path.id)
         .execute(&state.db)
         .await
     {
@@ -104,8 +100,8 @@ struct PutTask {
     done: Option<bool>,
 }
 
-#[put("/tasks/{id}")]
-async fn put_task(
+#[patch("/tasks/{id}")]
+async fn patch_task(
     state: web::Data<State>,
     path: web::Path<TaskPath>,
     json: web::Json<PutTask>,
@@ -179,7 +175,9 @@ async fn main() -> anyhow::Result<()> {
                 let host = origin.to_str().unwrap();
                 host.contains("127.0.0.1") || host.contains("localhost")
             })
-            .allowed_methods(vec!["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allowed_methods(vec![
+                "HEAD", "OPTIONS", "GET", "POST", "PUT", "DELETE", "PATCH",
+            ])
             .allowed_headers(vec![http::header::ACCEPT, http::header::CONTENT_TYPE])
             .max_age(3600);
         App::new()
@@ -188,9 +186,9 @@ async fn main() -> anyhow::Result<()> {
             .app_data(web::Data::new(state.clone()))
             .route("/", web::get().to(HttpResponse::Ok))
             .service(get_tasks)
-            .service(post_task)
+            .service(post_tasks)
             .service(delete_task)
-            .service(put_task)
+            .service(patch_task)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
