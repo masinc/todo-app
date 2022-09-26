@@ -10,7 +10,9 @@
 		Label,
 		Row
 	} from 'sveltestrap';
-	import { PUBLIC_API_SERVER } from '$env/static/public';
+
+	import { DefaultApi } from '$lib/openapi';
+	const api = new DefaultApi();
 
 	interface Task {
 		id: number;
@@ -23,46 +25,35 @@
 	let addTaskTitle = '';
 
 	async function getTaskList() {
-		const res = await fetch(`${PUBLIC_API_SERVER}/task`);
-		return await res.json();
+		return await api.tasksGet();
 	}
 
 	async function addTask() {
         const body = {title: addTaskTitle};
         addTaskTitle = "";
-		await fetch(`${PUBLIC_API_SERVER}/task`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(body)
-		});
+
+		await api.tasksPost({
+			postTasks: body
+		})
 
 		tasks = await getTaskList();
 	}
 
 	async function removeTask(id) {
-        await fetch(`${PUBLIC_API_SERVER}/task`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({id})
-        });
+		await api.tasksIdDelete({
+			id
+		});
 
         tasks = await getTaskList();
 	}
 
     async function toggleTask(task: Task) {
-        await fetch(`${PUBLIC_API_SERVER}/task/${task.id}`, {
-            method: "PUT",
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                done: task.done
-            })
-        })
+		await api.tasksIdPatch({
+			id: task.id,
+			patchTask: {
+				done: task.done
+			}
+		});
 
         tasks = await getTaskList();
     }

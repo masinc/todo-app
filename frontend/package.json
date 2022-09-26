@@ -9,9 +9,12 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --plugin-search-dir . --check . && eslint .",
-		"format": "prettier --plugin-search-dir . --write ."
+		"format": "prettier --plugin-search-dir . --write .",
+		"generate-api": "openapi-generator-cli generate -i ../openapi/openapi.yaml -g typescript-fetch -o src/lib/openapi/"
+
 	},
 	"devDependencies": {
+		"@openapitools/openapi-generator-cli": "^2.5.2",
 		"@playwright/test": "^1.25.0",
 		"@sveltejs/adapter-auto": "next",
 		"@sveltejs/kit": "next",

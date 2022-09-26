@@ -1,0 +1,108 @@
+openapi: 3.0.3
+
+info:
+  title: Todo API
+  version: 0.0.1
+servers:
+  - url: http://127.0.0.1:8080
+    description: Development
+paths:
+  /tasks:
+    get:
+      summary: Get All tasks
+      parameters: []
+      responses:
+        '200':
+          description: Json array of Task
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+    post:
+      summary: Add new task
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostTasks'
+      responses:
+        '200':
+          description: Ok
+
+  /tasks/{id}:
+    get:
+      summary: Get a Task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/TaskId'
+      responses:
+        '200':
+          description: Json object of Task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+    patch:
+      summary: Update a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/TaskId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTask'
+      responses:
+        '200':
+          description: Ok
+    delete:
+      summary: Delete a Task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/TaskId'
+      responses:
+        '200':
+          description: Ok
+components:
+  schemas:
+    TaskId:
+      type: integer
+    Title:
+      type: string
+    Done:
+      type: boolean
+    Task:
+      type: object
+      required: [id, title, done]
+      properties:
+        id:
+          $ref: '#/components/schemas/TaskId'
+        title:
+          $ref: '#/components/schemas/Title'
+        done:
+          $ref: '#/components/schemas/Done'
+    PatchTask:
+      type: object
+      properties:
+        title:
+          $ref: '#/components/schemas/Title'
+        done:
+          $ref: '#/components/schemas/Done'
+    PostTasks:
+      type: object
+      required: [title]
+      properties:
+        title:
+          $ref: '#/components/schemas/Title'
