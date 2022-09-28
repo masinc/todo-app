@@ -33,7 +33,7 @@ async fn get_task(
 ) -> actix_web::Result<web::Json<Task>> {
     let path = path.into_inner();
 
-    match sqlx::query_as::<_, Task>("SELECT * FROM task WHERE id = ?")
+    match sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = ?")
         .bind(path.id)
         .fetch_one(&state.db)
         .await
@@ -231,6 +231,25 @@ mod tests {
         ];
 
         assert_eq!(resp, tasks);
+
+        Ok(())
+    }
+
+    #[actix_web::test]
+    async fn test_get_task() -> anyhow::Result<()> {
+        let app = App::new().app_data(web::Data::new(init_state().await?)).service(get_task);
+        let app = test::init_service(app).await;
+
+        let req = test::TestRequest::get().uri("/tasks/1").to_request();
+        let resp: Task = test::call_and_read_body_json(&app, req).await;
+
+        let task = Task {
+            id: 1,
+            title: "First Task".into(),
+            done: false,
+        };
+
+        assert_eq!(resp, task);
 
         Ok(())
     }
