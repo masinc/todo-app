@@ -1,6 +1,6 @@
 use actix_cors::Cors;
+use actix_web::{App, delete, Either, get, http, HttpResponse, HttpServer, patch, post, Responder, web};
 use actix_web::middleware::Logger;
-use actix_web::{delete, get, http, patch, post, web, App, HttpResponse, HttpServer, Responder};
 use env_logger::Env;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -30,18 +30,23 @@ struct TaskPath {
 async fn get_task(
     state: web::Data<State>,
     path: web::Path<TaskPath>,
-) -> actix_web::Result<web::Json<Task>> {
+) -> Either<HttpResponse, web::Json<Task>> {
     let path = path.into_inner();
 
     match sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = ?")
         .bind(path.id)
-        .fetch_one(&state.db)
+        .fetch_optional(&state.db)
         .await
     {
-        Ok(task) => Ok(web::Json(task)),
+        Ok(task) =>
+            match task {
+                Some(task) => Either::Right(web::Json(task)),
+                None => Either::Left(HttpResponse::NoContent().finish())
+            }
+
         Err(e) => {
             info!("{e:?}");
-            Err(actix_web::error::ErrorBadRequest(e))
+            Either::Left(HttpResponse::BadRequest().body(format!("{:?}", e)))
         }
     }
 }
@@ -204,8 +209,9 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use actix_web::test;
+
+    use super::*;
 
     #[actix_web::test]
     async fn test_get_tasks() -> anyhow::Result<()> {
@@ -248,8 +254,12 @@ mod tests {
             title: "First Task".into(),
             done: false,
         };
-
         assert_eq!(resp, task);
+
+        // id is not found
+        let req = test::TestRequest::get().uri("/tasks/99999").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), http::StatusCode::NO_CONTENT);
 
         Ok(())
     }
