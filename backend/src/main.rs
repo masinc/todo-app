@@ -165,13 +165,14 @@ async fn init_state() -> anyhow::Result<State> {
     };
 
     sqlx::migrate!().run(&state.db).await?;
-
     Ok(state)
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
+
+    let state = init_state().await?;
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -187,16 +188,16 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(cors)
-            .app_data(web::Data::new(init_state()))
+            .app_data(web::Data::new(state.clone()))
             .route("/", web::get().to(HttpResponse::Ok))
             .service(get_tasks)
             .service(post_tasks)
             .service(delete_task)
             .service(patch_task)
     })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await?;
+        .bind(("127.0.0.1", 8080))?
+        .run()
+        .await?;
 
     Ok(())
 }
@@ -210,7 +211,7 @@ mod tests {
     async fn test_get_tasks() -> anyhow::Result<()> {
         let app = App::new()
             .service(get_tasks)
-            .app_data(web::Data::new(init_state()));
+            .app_data(web::Data::new(init_state().await?));
         let app = test::init_service(app).await;
 
         let req = test::TestRequest::get().uri("/tasks").to_request();
