@@ -14,7 +14,7 @@ struct State {
     db: SqlitePool,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, PartialEq, Eq, Deserialize, sqlx::FromRow)]
 struct Task {
     id: Id,
     title: String,
@@ -195,4 +195,47 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::test;
+
+    #[actix_web::test]
+    async fn test_get_tasks() -> anyhow::Result<()> {
+        let state = State {
+            db: SqlitePoolOptions::new()
+                .max_connections(10)
+                .connect(":memory:")
+                .await?,
+        };
+
+        sqlx::migrate!().run(&state.db).await?;
+
+        let app = App::new()
+            .service(get_tasks)
+            .app_data(web::Data::new(state.clone()));
+        let app = test::init_service(app).await;
+
+        let req = test::TestRequest::get().uri("/tasks").to_request();
+        let resp: Vec<Task> = test::call_and_read_body_json(&app, req).await;
+
+        let tasks = vec![
+            Task {
+                id: 1,
+                title: "First Task".into(),
+                done: false,
+            },
+            Task {
+                id: 2,
+                title: "Second Task".into(),
+                done: false,
+            },
+        ];
+
+        assert_eq!(resp, tasks);
+
+        Ok(())
+    }
 }
