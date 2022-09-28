@@ -156,10 +156,7 @@ async fn patch_task(
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
-
+async fn init_state() -> anyhow::Result<State> {
     let state = State {
         db: SqlitePoolOptions::new()
             .max_connections(10)
@@ -168,6 +165,13 @@ async fn main() -> anyhow::Result<()> {
     };
 
     sqlx::migrate!().run(&state.db).await?;
+
+    Ok(state)
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    env_logger::init_from_env(Env::default().default_filter_or("info"));
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -183,7 +187,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(cors)
-            .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(init_state()))
             .route("/", web::get().to(HttpResponse::Ok))
             .service(get_tasks)
             .service(post_tasks)
@@ -204,18 +208,9 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_tasks() -> anyhow::Result<()> {
-        let state = State {
-            db: SqlitePoolOptions::new()
-                .max_connections(10)
-                .connect(":memory:")
-                .await?,
-        };
-
-        sqlx::migrate!().run(&state.db).await?;
-
         let app = App::new()
             .service(get_tasks)
-            .app_data(web::Data::new(state.clone()));
+            .app_data(web::Data::new(init_state()));
         let app = test::init_service(app).await;
 
         let req = test::TestRequest::get().uri("/tasks").to_request();
