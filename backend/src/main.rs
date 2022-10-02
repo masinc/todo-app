@@ -1,7 +1,10 @@
 use actix_cors::Cors;
-use actix_web::{App, delete, Either, get, http, HttpResponse, HttpServer, patch, post, Responder, web};
 use actix_web::middleware::Logger;
+use actix_web::{
+    delete, get, http, patch, post, web, App, Either, HttpResponse, HttpServer, Responder,
+};
 use env_logger::Env;
+use indoc::indoc;
 use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePoolOptions;
@@ -38,11 +41,10 @@ async fn get_task(
         .fetch_optional(&state.db)
         .await
     {
-        Ok(task) =>
-            match task {
-                Some(task) => Either::Right(web::Json(task)),
-                None => Either::Left(HttpResponse::NoContent().finish())
-            }
+        Ok(task) => match task {
+            Some(task) => Either::Right(web::Json(task)),
+            None => Either::Left(HttpResponse::NoContent().finish()),
+        },
 
         Err(e) => {
             info!("{e:?}");
@@ -200,9 +202,9 @@ async fn main() -> anyhow::Result<()> {
             .service(delete_task)
             .service(patch_task)
     })
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await?;
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await?;
 
     Ok(())
 }
@@ -210,6 +212,7 @@ async fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use actix_web::test;
+    use sqlx::Executor;
 
     use super::*;
 
@@ -243,7 +246,9 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_task() -> anyhow::Result<()> {
-        let app = App::new().app_data(web::Data::new(init_state().await?)).service(get_task);
+        let app = App::new()
+            .app_data(web::Data::new(init_state().await?))
+            .service(get_task);
         let app = test::init_service(app).await;
 
         let req = test::TestRequest::get().uri("/tasks/1").to_request();
@@ -261,6 +266,65 @@ mod tests {
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), http::StatusCode::NO_CONTENT);
 
+        Ok(())
+    }
+
+    #[actix_web::test]
+    async fn test_post_tasks() -> anyhow::Result<()> {
+        let state = State {
+            db: SqlitePoolOptions::new()
+                .max_connections(10)
+                .connect(":memory:")
+                .await?,
+        };
+
+        state
+            .db
+            .execute(indoc!(
+                "
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title STRING NOT NULL,
+                    done INTEGER NOT NULL DEFAULT 0
+            );"
+            ))
+            .await?;
+
+        let app = App::new()
+            .app_data(web::Data::new(state))
+            .service(post_tasks)
+            .service(get_tasks);
+        let app = test::init_service(app).await;
+
+        // post
+        {
+            let task = AddTask {
+                title: "Test Task Test".into(),
+            };
+
+            let req = test::TestRequest::post()
+                .uri("/tasks")
+                .set_json(&task)
+                .to_request();
+
+            let resp = test::call_service(&app, req).await;
+            assert_eq!(resp.status(), http::StatusCode::OK);
+        }
+
+        // get
+        {
+            let req = test::TestRequest::get().uri("/tasks").to_request();
+            let resp: Vec<Task> = test::call_and_read_body_json(&app, req).await;
+
+            assert_eq!(
+                resp,
+                vec! {Task {
+                    id: 1,
+                    title: "Test Task Test".into(),
+                    done: false,
+                }}
+            );
+        }
         Ok(())
     }
 }
