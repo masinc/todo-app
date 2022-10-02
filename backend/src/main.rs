@@ -7,15 +7,12 @@ use env_logger::Env;
 use indoc::indoc;
 use log::info;
 use serde::{Deserialize, Serialize};
-use sqlx::sqlite::SqlitePoolOptions;
-use sqlx::SqlitePool;
+
+use crate::state::State;
+
+mod state;
 
 type Id = u32;
-
-#[derive(Debug, Clone)]
-struct State {
-    db: SqlitePool,
-}
 
 #[derive(Debug, Serialize, PartialEq, Eq, Deserialize, sqlx::FromRow)]
 struct Task {
@@ -163,23 +160,11 @@ async fn patch_task(
     }
 }
 
-async fn init_state() -> anyhow::Result<State> {
-    let state = State {
-        db: SqlitePoolOptions::new()
-            .max_connections(10)
-            .connect(":memory:")
-            .await?,
-    };
-
-    sqlx::migrate!().run(&state.db).await?;
-    Ok(state)
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
-    let state = init_state().await?;
+    let state = State::init_and_migrate().await?;
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -220,7 +205,7 @@ mod tests {
     async fn test_get_tasks() -> anyhow::Result<()> {
         let app = App::new()
             .service(get_tasks)
-            .app_data(web::Data::new(init_state().await?));
+            .app_data(web::Data::new(State::init_and_migrate().await?));
         let app = test::init_service(app).await;
 
         let req = test::TestRequest::get().uri("/tasks").to_request();
@@ -247,7 +232,7 @@ mod tests {
     #[actix_web::test]
     async fn test_get_task() -> anyhow::Result<()> {
         let app = App::new()
-            .app_data(web::Data::new(init_state().await?))
+            .app_data(web::Data::new(State::init_and_migrate().await?))
             .service(get_task);
         let app = test::init_service(app).await;
 
@@ -271,12 +256,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_post_tasks() -> anyhow::Result<()> {
-        let state = State {
-            db: SqlitePoolOptions::new()
-                .max_connections(10)
-                .connect(":memory:")
-                .await?,
-        };
+        let state = State::init().await?;
 
         state
             .db
