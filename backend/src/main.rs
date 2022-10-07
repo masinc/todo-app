@@ -344,4 +344,49 @@ mod tests {
 
         Ok(())
     }
+
+    #[actix_web::test]
+    async fn test_patch_task() -> anyhow::Result<()> {
+        let state = State::init_and_migrate().await?;
+
+        let app = App::new()
+            .app_data(web::Data::new(state))
+            .service(patch_task)
+            .service(get_task);
+        let app = test::init_service(app).await;
+
+        let path = "/tasks/1";
+
+        // found task
+        {
+            let req = test::TestRequest::get().uri(path).to_request();
+            let resp = test::call_service(&app, req).await;
+
+            assert_eq!(resp.status(), http::StatusCode::OK);
+        }
+
+        // patch task
+        {
+            let req = test::TestRequest::patch()
+                .uri(path)
+                .set_json(PatchTask {
+                    title: Some("test_patch_task".into()),
+                    done: Some(true),
+                })
+                .to_request();
+            let resp = test::call_service(&app, req).await;
+            assert_eq!(resp.status(), http::StatusCode::OK);
+        }
+
+        // get patched task
+        {
+            let req = test::TestRequest::get().uri(path).to_request();
+            let resp: Task = test::call_and_read_body_json(&app, req).await;
+
+            assert_eq!(resp.title, "test_patch_task".to_string());
+            assert!(resp.done);
+        }
+
+        Ok(())
+    }
 }
