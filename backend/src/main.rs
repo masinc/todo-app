@@ -116,7 +116,7 @@ async fn patch_task(
     let post = "WHERE id = ?";
     match (&json.title, &json.done) {
         (Some(title), Some(done)) => {
-            if let Err(e) = sqlx::query(&format!("{pre} title = ? done = ? {post}"))
+            if let Err(e) = sqlx::query(&format!("{pre} title = ?, done = ? {post}"))
                 .bind(title)
                 .bind(if *done { 1 } else { 0 })
                 .bind(path.id)
@@ -143,7 +143,6 @@ async fn patch_task(
             }
         }
         (None, Some(done)) => {
-            dbg!(done);
             if let Err(e) = sqlx::query(&format!("{pre} done = ? {post}"))
                 .bind(if *done { 1 } else { 0 })
                 .bind(path.id)
