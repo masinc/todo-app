@@ -307,4 +307,41 @@ mod tests {
         }
         Ok(())
     }
+
+    #[actix_web::test]
+    async fn test_delete_task() -> anyhow::Result<()> {
+        let state = State::init_and_migrate().await?;
+
+        let app = App::new()
+            .app_data(web::Data::new(state))
+            .service(delete_task)
+            .service(get_task);
+        let app = test::init_service(app).await;
+
+        let path = "/tasks/1";
+
+        // fount task
+        {
+            let req = test::TestRequest::get().uri(path).to_request();
+            let resp = test::call_service(&app, req).await;
+
+            assert_eq!(resp.status(), http::StatusCode::OK);
+        }
+
+        // delete task
+        {
+            let req = test::TestRequest::delete().uri(path).to_request();
+            let resp = test::call_service(&app, req).await;
+            assert_eq!(resp.status(), http::StatusCode::OK);
+        }
+
+        // not found task
+        {
+            let req = test::TestRequest::get().uri(path).to_request();
+            let resp = test::call_service(&app, req).await;
+            assert_eq!(resp.status(), http::StatusCode::NO_CONTENT);
+        }
+
+        Ok(())
+    }
 }
