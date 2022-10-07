@@ -99,7 +99,7 @@ async fn delete_task(state: web::Data<State>, path: web::Path<TaskPath>) -> impl
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct PutTask {
+struct PatchTask {
     title: Option<String>,
     done: Option<bool>,
 }
@@ -108,7 +108,7 @@ struct PutTask {
 async fn patch_task(
     state: web::Data<State>,
     path: web::Path<TaskPath>,
-    json: web::Json<PutTask>,
+    json: web::Json<PatchTask>,
 ) -> impl Responder {
     let path = path.into_inner();
 
