@@ -1,4 +1,5 @@
-import adapter from '@sveltejs/adapter-auto';
+// import adapter from '@sveltejs/adapter-auto';
+import adapter from '@sveltejs/adapter-static';
 import preprocess from 'svelte-preprocess';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -8,10 +9,14 @@ const config = {
 	preprocess: preprocess(),
 
 	kit: {
-		adapter: adapter(),
-		files: {
-			lib: 'src/lib'
-		}
+		// https://github.com/sveltejs/kit/tree/master/packages/adapter-static
+		adapter: adapter({
+			pages: 'build',
+			assets: 'build',
+			fallback: null,
+			preprocess: false,
+			strict: true
+		}),
 	}
 };
 
