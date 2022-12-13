@@ -25,7 +25,7 @@ pub async fn patch_task(
         (Some(title), Some(done)) => {
             if let Err(e) = sqlx::query(&format!("{pre} title = ?, done = ? {post}"))
                 .bind(title)
-                .bind(if *done { 1 } else { 0 })
+                .bind(i32::from(*done))
                 .bind(path.id)
                 .execute(&state.db)
                 .await
@@ -51,7 +51,7 @@ pub async fn patch_task(
         }
         (None, Some(done)) => {
             if let Err(e) = sqlx::query(&format!("{pre} done = ? {post}"))
-                .bind(if *done { 1 } else { 0 })
+                .bind(i32::from(*done))
                 .bind(path.id)
                 .execute(&state.db)
                 .await
